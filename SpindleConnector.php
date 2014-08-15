@@ -32,9 +32,9 @@ final class SpindleConnector
     
     /** DO NOT EDIT BELOW THIS LINE */
     protected $_TEST_API_BASE_URL = 'https://integration.spindleapi.com/1/';
-    protected $_API_BASE_URL = 'https://integration.spindleapi.com/1/';
-    protected $_MCRYPT_ENCODING = MCRYPT_RIJNDAEL_128;
-    protected $_MCRYPT_MODE = MCRYPT_MODE_CBC;
+    protected $_API_BASE_URL = 'https://api.spindleapi.com/1/';
+    protected $_MCRYPT_ENCODING = \MCRYPT_RIJNDAEL_128;
+    protected $_MCRYPT_MODE = \MCRYPT_MODE_CBC;
     protected $_API_FUNCTION_DOMAIN = array();
     
     /** Populated at run time with values */
@@ -56,6 +56,7 @@ final class SpindleConnector
        (!$sid && $sid != '')? $this->ReportMissingParam('sid') : $this->_SID = $sid;
        (!$un && $un != '')? $this->ReportMissingParam('username') : $this->_USERNAME = $un;
        (!$pw && $pw != '')? $this->ReportMissingParam('password') : $this->_PASSWORD = $pw;
+
    }
 
     /**
@@ -63,9 +64,21 @@ final class SpindleConnector
      * Generates a session for a logged in user.  Returns the user’s SessionID.
      * @return  mixed
      */
-    public function CreateSession($param_string = null, $encrypted_data = null, $return_json = null)
+    public function CreateSession($encrypted_data = null, $return_json = null)
     {
-        return $this->GetCURLResponse('Session/CreateSession', $param_string, $encrypted_data, $return_json);
+        $params = array('CID'           => $this->GetCID(),
+                        'Password'      => $this->GetPassword(),
+                        'SID'           => $this->GetSID(),
+                        'Username'      => $this->GetUsername());
+
+        $sessionResponse = $this->GetCURLResponse('Session/CreateSession', 
+                                                    $this->ArrayToParamString($params), 
+                                                    $encrypted_data, 
+                                                    $return_json);
+        $responseAsJSON = json_decode($sessionResponse, true);
+        $this->_SESSION_ID = $responseAsJSON['SessionID'];
+        
+        return $sessionResponse;
     }
    
     /**
@@ -90,7 +103,9 @@ final class SpindleConnector
      */
     public function Authorize($params = null)
     {
-        return $this->GetResponseForAction('Transaction/Authorize', $params);
+        return $this->GetCURLResponse('Transaction/Authorize', 
+                                      $this->ArrayToParamString($params), 
+                                      $this->GetEncryptedCheckSum( $this->ArrayToEncryptableString($params)));
     }
    
     /**
@@ -102,7 +117,9 @@ final class SpindleConnector
      */
     public function Capture($params = null)
     {
-        return $this->GetResponseForAction('Transaction/Capture',$params);
+        return $this->GetCURLResponse('Transaction/Capture',
+                                           $this->ArrayToParamString($params), 
+                                           $this->GetEncryptedCheckSum( $this->ArrayToEncryptableString($params)));
     }
    
     /**
@@ -113,7 +130,9 @@ final class SpindleConnector
      */
     public function Sale($params = null)
     {
-        return $this->GetResponseForAction('Transaction/Sale',$params);
+        return $this->GetCURLResponse('Transaction/Sale', 
+                                      $this->ArrayToParamString($params), 
+                                      $this->GetEncryptedCheckSum( $this->ArrayToEncryptableString($params)) );
     }
    
     /**
@@ -125,7 +144,9 @@ final class SpindleConnector
      */
     public function Refund($params = null)
     {
-        return $this->GetResponseForAction('Transaction/Refund',$params);
+        return $this->GetCURLResponse('Transaction/Refund',
+                                      $this->ArrayToParamString($params), 
+                                      $this->GetEncryptedCheckSum( $this->ArrayToEncryptableString($params)));
     }
    
     /**
@@ -137,7 +158,9 @@ final class SpindleConnector
      */
     public function Void($params = null)
     {
-        return $this->GetResponseForAction('Transaction/Void',$params);
+        return $this->GetCURLResponse('Transaction/Void',
+                                      $this->ArrayToParamString($params), 
+                                      $this->GetEncryptedCheckSum( $this->ArrayToEncryptableString($params)));
     }
    
     /**
@@ -151,7 +174,9 @@ final class SpindleConnector
      */
     public function ProcessSignature($params = null)
     {
-        return $this->GetResponseForAction('Transaction/ProcessSignature',$params);
+        return $this->GetCURLResponse('Transaction/ProcessSignature',
+                                      $this->ArrayToParamString($params), 
+                                      $this->GetEncryptedCheckSum( $this->ArrayToEncryptableString($params)));
     }
    
     /**
@@ -161,7 +186,9 @@ final class SpindleConnector
      */
     public function TransactionHistory($params = null)
     {
-        return $this->GetResponseForAction('Transaction/TransactionHistory',$params);
+        return $this->GetCURLResponse('Transaction/TransactionHistory',
+                                      $this->ArrayToParamString($params), 
+                                      $this->GetEncryptedCheckSum( $this->ArrayToEncryptableString($params)));
     }
    
     /**
@@ -171,7 +198,11 @@ final class SpindleConnector
      */
     public function RegisterCard($params = null)
     {
-        return $this->GetResponseForAction('Vault/RegisterCard',$params);
+        $params['CardNumber'] = $this->GetEncryptedValue($params['CardNumber']);
+
+        return $this->GetCURLResponse('Vault/RegisterCard',
+                                      $this->ArrayToParamString($params),
+                                      $this->GetEncryptedCheckSum( $this->ArrayToEncryptableString($params) ));
     }
    
     /**
@@ -181,7 +212,9 @@ final class SpindleConnector
      */
     public function RetrieveCard($params = null)
     {
-        return $this->GetResponseForAction('Vault/RetrieveCard',$params);
+        return $this->GetCURLResponse('Vault/RetrieveCard',
+                                      $this->ArrayToParamString($params),
+                                      $this->GetEncryptedCheckSum( $this->ArrayToEncryptableString($params)) );
     }
    
     /**
@@ -191,7 +224,9 @@ final class SpindleConnector
      */
     public function RemoveCard($params = null)
     {
-        return $this->GetResponseForAction('Vault/RemoveCard',$params);
+        return $this->GetCURLResponse('Vault/RemoveCard',
+                                      $this->ArrayToParamString($params), 
+                                      $this->GetEncryptedCheckSum( $this->ArrayToEncryptableString($params)));
     }
    
     /**
@@ -202,7 +237,9 @@ final class SpindleConnector
      */
     public function ChangePassword($params = null)
     {
-        return $this->GetResponseForAction('Utility/ChangePassword',$params);
+        return $this->GetCURLResponse('Utility/ChangePassword',
+                                      $this->ArrayToParamString($params), 
+                                      $this->GetEncryptedCheckSum( $this->ArrayToEncryptableString($params)));
     }
    
     /**
@@ -215,7 +252,9 @@ final class SpindleConnector
      */
     public function TipAdjustment($params = null)
     {
-        return $this->GetResponseForAction('Transaction/TipAdjustment',$params);
+        return $this->GetCURLResponse('Transaction/TipAdjustment',
+                                      $this->ArrayToParamString($params), 
+                                      $this->GetEncryptedCheckSum( $this->ArrayToEncryptableString($params)));
     }
    
     /**
@@ -225,7 +264,9 @@ final class SpindleConnector
      */
     public function BoardMerchant($params = null)
     {
-        return $this->GetResponseForAction('Board/BoardMerchant',$params);
+        return $this->GetCURLResponse('Board/BoardMerchant',
+                                      $this->ArrayToParamString($params), 
+                                      $this->GetEncryptedCheckSum( $this->ArrayToEncryptableString($params)));
     }
    
     /**
@@ -241,52 +282,63 @@ final class SpindleConnector
      */
     public function Checkout($params = null)
     {
-        return $this->GetResponseForAction('Hosting/Checkout',$params);
+        return $this->GetCURLResponse('Hosting/Checkout',
+                                      $this->ArrayToParamString($params), 
+                                      $this->GetEncryptedCheckSum( $this->ArrayToEncryptableString($params)));
     }
 
+    /** 
+     * Returns the assigned CID
+     * @return string
+     */
     public function GetCID()
     {
         return $this->_CID;
     }
     
+    /** 
+     * Returns the assigned SID
+     * @return string
+     */
     public function GetSID()
     {
         return $this->_SID;
     }
     
+    /** 
+     * Returns the assigned Username
+     * @return string
+     */
     public function GetUsername()
     {
         return $this->_USERNAME;
     }
     
+    /**
+     * Returns the assigned Password
+     * @return string
+     */
     public function GetPassword()
     {
         return $this->_PASSWORD;
     }
     
+    /** 
+     * Returns the assigned SessionID
+     * @return string
+     */
     public function GetSessionID()
     {
         return $this->_SESSION_ID;
     }
+    
     
     /**
      *************************************************************************************
      * Utility type functions
      *************************************************************************************
      */
-    public function Encrypt()
-    {
-        error_log(self::GetEncryptionKey());
-        
-        srand(); $iv = mcrypt_create_iv(mcrypt_get_iv_size(MCRYPT_RIJNDAEL_128, MCRYPT_MODE_CBC), MCRYPT_RAND);
-        if (strlen($iv_base64 = rtrim(base64_encode($iv), '=')) != 22) return false;
-        // Encrypt $decrypted and an MD5 of $decrypted using $key.  MD5 is fine to use here because it's just to verify successful decryption.
-        $encrypted = base64_encode(mcrypt_encrypt(MCRYPT_RIJNDAEL_128, self::PRIVATE_KEY, self::GetCrc32String(), MCRYPT_MODE_CBC, $iv));
-        // We're done!
-        return $encrypted;
-        
-    }
-    
+
     protected function GetResponseForAction($action = null, $params = null)
     {
         if(!$action || empty($action)) {
@@ -296,48 +348,78 @@ final class SpindleConnector
         if(!$params || empty($params)) {
             return $this->ReportMissingParam('RESPONSE_REQUEST_' . $action . '_PARAMS');
         }
-        
-        
+
         return $this->GetCURLResponse($action,
-                                      $this->BuildEncodedStringFromArray($params),
+                                      $this->BuildStringFromArray($params),
                                       $this->GetEncryptedCheckSum( $this->BuildStringFromArrayForEncryption($params)));
-    }
-   
-    protected function aes256_cbc_encrypt($key, $data, $iv) {
-        if(32 !== strlen($key)) $key = hash('SHA256', $key, true);
-        if(16 !== strlen($iv)) $iv = hash('MD5', $iv, true);
-        $padding = 16 - (strlen($data) % 16);
-        $data .= str_repeat(chr($padding), $padding);
-        return base64_encode(mcrypt_encrypt(MCRYPT_RIJNDAEL_128, $key, $data, MCRYPT_MODE_CBC, $iv));
     }
     
     private function GetEncryptionIV()
     {
-        return substr($this->_PRIVATE_KEY, 0, 16);
+        return \substr($this->_PRIVATE_KEY, 0, 16);
     }
     
     private function GetEncryptionKey()
     {
  
-        return substr($this->_PRIVATE_KEY, 0, 32);
+        return \substr($this->_PRIVATE_KEY, 0, 32);
+    }
+    
+    protected function GetEncryptedValue($data = null)
+    {
+        if(!$data) {
+            return false;
+        }
+        
+        $_key = $this->GetEncryptionKey();
+        $_iv  = $this->GetEncryptionIV();
+        if(32 !== \strlen($_key)){ $_key = \hash('SHA256', $_key, true);}
+        if(16 !== \strlen($_iv)) { $_iv = \hash('MD5', $_iv, true);}
+        $_padding = 16 - (\strlen($data) % 16);
+        $data .= \str_repeat(\chr($_padding), $_padding);
+
+        $returnCode = \mcrypt_encrypt(\MCRYPT_RIJNDAEL_128, $_key, $data, \MCRYPT_MODE_CBC, $_iv);
+        
+        return base64_encode($returnCode);
     }
     
     protected function GetEncryptedCheckSum($data = null)
     {
-        $_data = (!$data || empty($data)) ? $_data = $this->GetCrc32String() : $data;
-        //$_data = $this->GetCrc32String(); // slated for removal after test
+        $_data = (!$data || empty($data)) ? $_data = $this->GetCrc32String() : $this->GetCrc32StringFromData($data);
         $_key = $this->GetEncryptionKey();
         $_iv  = $this->GetEncryptionIV();
-        if(32 !== strlen($_key)) $_key = hash('SHA256', $_key, true);
-        if(16 !== strlen($_iv)) $_iv = hash('MD5', $_iv, true);
-        $_padding = 16 - (strlen($_data) % 16);
-        $_data .= str_repeat(chr($_padding), $_padding);
-        return base64_encode(mcrypt_encrypt(MCRYPT_RIJNDAEL_128, $_key, $_data, MCRYPT_MODE_CBC, $_iv));
+        if(32 !== \strlen($_key)){ $_key = \hash('SHA256', $_key, true);}
+        if(16 !== \strlen($_iv)) { $_iv = \hash('MD5', $_iv, true);}
+        $_padding = 16 - (\strlen($_data) % 16);
+        $_data .= \str_repeat(\chr($_padding), $_padding);
+
+        $returnCode = \mcrypt_encrypt(\MCRYPT_RIJNDAEL_128, $_key, $_data, \MCRYPT_MODE_CBC, $_iv);
+
+        return \base64_encode($returnCode);
     }
     
     protected function GetCrc32String()
     {
-        return crc32( strtoupper( "".$this->_CID.$this->_CID.$this->_PASSWORD.$this->_SID.$this->_USERNAME ) );
+        return \crc32( \strtoupper( "".$this->_CID.$this->_CID.$this->_PASSWORD.$this->_SID.$this->_USERNAME ) );
+    }
+    
+    protected function GetCrc32StringFromData($data = null)
+    {
+        if (!is_array($data)) {
+            $crc = \crc32 ( \strtoupper ( $data));
+            return $crc;
+        } 
+        
+        $_data = $this->GetCID();
+        
+        \ksort($data);
+        
+        foreach ($data as $key => $value) {
+            $_data .= $value;
+        }
+        $crc = \crc32 ( \strtoupper ( $_data));
+        
+        return $crc;
     }
     
     /**
@@ -356,41 +438,99 @@ final class SpindleConnector
         $_arrayToString = '';
         
         foreach($ar as $key => $value) {
-            $_arrayToString .= "&amp;$key=" . urlencode($value);
+            $_arrayToString .= "&amp;$key=" . \urlencode($value);
         }
         
        return $_arrayToString;
-
     }
     
+    /** 
+     * Builds a string from an array
+     * @param mixed $ar
+     * @return string
+     */
+    protected function BuildStringFromArray($ar = null)
+    {
+        if(!$ar || empty($ar)) {
+            $this->ReportMissingParam('ArrayToEncodedString'); // turn on when ready
+        }
+        
+        $_arrayToString = '';
+
+        foreach($ar as $key => $value) {
+            
+            $_arrayToString .= "&$key=" . \str_replace(' ', '+', $value);
+        }
+        
+        return \ltrim($_arrayToString, '&');
+    }
+    
+    /**
+     * Different from BuildStringFromArray, prepending the CID, no str_replace
+     * @param mixed $ar
+     * @return string
+     */
     protected function BuildStringFromArrayForEncryption($ar = null)
     {
         if(!$ar || empty($ar)) {
             $this->ReportMissingParam('StringFromArrayForEncoding');
         }
-        /* debug */
-        error_log(__FUNCTION__ . 'ar ' . print_r($ar, true));
         
-        $_arrayToString = '';
+        $_arrayToString = $this->GetCID();
         
         foreach($ar as $key => $value) {
             $_arrayToString .= $value;
         }
-        
-        /* debug */
-        error_log(__FUNCTION__ . 'ar-string ' . $ar);
-        
+
         return $_arrayToString;
     }
     
-    protected function GetEncodedParamString()
+    /** 
+     * Converts an array to encryptable string (duplicate, removing)
+     * @param mixed $params
+     * @return string
+     */
+    protected function ArrayToEncryptableString($params = null)
     {
-        return sprintf( "CID=%s&Password=%s&SID=%s&Username=%s",
-                       urlencode($this->_CID),
-                       urlencode($this->_PASSWORD),
-                       urlencode($this->_SID),
-                       urlencode($this->_USERNAME));
+        if (!$params) {
+            return false;
+        }
+        
+        $_arrayToString = $this->GetCID();
+        
+        foreach($params as $key => $value) {
+            $_arrayToString .= $value;
+        }
+
+        return $_arrayToString;
     }
+    
+    /**
+     * Converts array params to param string
+     * @param mixed $params
+     * @return string
+     */
+    protected function ArrayToParamString($params = null)
+    {
+        if (!$params) {
+            return false;
+        }
+        
+        $_arrayToString = '';
+        
+        foreach($params as $key => $value) {
+            
+            $_arrayToString .= "&$key=" . \str_replace(' ', '+', $value);
+        }
+        
+        return \ltrim($_arrayToString, '&');
+    }
+
+    /**
+     * Error reporting function
+     * @param string $msg
+     * @param string $code
+     */
     protected function ReportError($msg = null, $code = null)
     {
         if(!$msg || empty($msg)) {
@@ -404,6 +544,10 @@ final class SpindleConnector
         error_log("ERROR [$code] " . ucwords($msg) );
     }
     
+    /**
+     * Reports a missing param in request
+     * @param type $paramName
+     */
     protected function ReportMissingParam($paramName=false)
     {
         if(!$paramName) {
@@ -411,43 +555,36 @@ final class SpindleConnector
         }
     }
     
-    private function FormatJsonResponse($message=null, $code='0000')
-    {
-        if(!$message) {
-            error_log( json_encode( array('message'=>'You have to call '.__FUNCTION__.' with an array', 'code'=>$code)));
-        }
-        
-        error_log( json_encode( array('message'=>$message, 'code'=>$code)));
-    }
-    
+    /** 
+     * Calls out to the Spindle endpoint
+     * @param string $method
+     * @param string $encodedParamString
+     * @param string $encryptedData
+     * @param boolean $returnArray
+     * @return mixed
+     */
     private function GetCURLResponse($method = null, $encodedParamString = null, $encryptedData = null, $returnArray = false)
     {
         
-        $_encoded_param_string = (!$encodedParamString && !empty($encodedParamString)) ? $encodedParamString : $this->GetEncodedParamString();
+        $_encoded_param_string = ($encodedParamString && !empty($encodedParamString)) ? $encodedParamString : $this->GetParamString();
         
-        error_log(__FUNCTION__ . ' _encoded_param_string ' . $_encoded_param_string);
+        $_encrypted_data = ($encryptedData && !empty($encryptedData)) ? $encryptedData : $this->GetEncryptedCheckSum();
+
+        $_url = $this->_API_BASE_URL . $method . '?' . $_encoded_param_string . '&Checksum=' . \urlencode($_encrypted_data);
         
-        $_encrypted_data = (!$encryptedData && !empty($encryptedData)) ? $encryptedData : $this->GetEncryptedCheckSum();
-        
-        error_log(__FUNCTION__ . ' _encrypted_data ' . $_encrypted_data);
-        
-        $_url = $this->_API_BASE_URL . $method . '?' . $_encoded_param_string . '&Checksum=' . $_encrypted_data;
-        
-        error_log(__FUNCTION__ . ' _url ' . $_url);
-        
-        //$_url = $this->_API_BASE_URL . $method . '?' . $this->GetEncodedParamString() . '&Checksum=' . urlencode($this->GetEncryptedCheckSum() );
+        error_log("CURL_RESPONSE_FROM : $_url");
         
         $__ch = curl_init($_url);
-        curl_setopt($__ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($__ch, CURLOPT_SSL_VERIFYHOST, 2);
-        curl_setopt($__ch, CURLOPT_SSLVERSION,3);
-        curl_setopt($__ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($__ch, CURLOPT_TIMEOUT, '3');
-        $__content = trim(curl_exec($__ch));
-        curl_close($__ch);
+        \curl_setopt($__ch, \CURLOPT_SSL_VERIFYPEER, false);
+        \curl_setopt($__ch, \CURLOPT_SSL_VERIFYHOST, 2);
+        \curl_setopt($__ch, \CURLOPT_SSLVERSION,3);
+        \curl_setopt($__ch, \CURLOPT_RETURNTRANSFER, 1);
+        \curl_setopt($__ch, \CURLOPT_TIMEOUT, '3');
+        $__content = \trim(curl_exec($__ch));
+        \curl_close($__ch);
  
         if($returnArray) {
-            return json_decode($__content, true);
+            return \json_decode($__content, true);
         }
         return $__content;  
     }
