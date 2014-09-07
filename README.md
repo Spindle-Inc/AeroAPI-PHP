@@ -1,7 +1,7 @@
 # SpindleConnector - PHP for AeroAPI #
 
-@author **Rob Little** *<rlittle@spindle.com>*  
-@copyright **Spindle, Inc.** 2013-2014
+@author **Rob Little** - [ rlittle@spindle.com ](mailto:rlittle@spindle.com)   
+@copyright **Spindle, Inc.**
 
 
 ----------
