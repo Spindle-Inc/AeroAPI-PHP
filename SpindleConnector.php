@@ -400,13 +400,15 @@ final class SpindleConnector
     
     protected function GetCrc32String()
     {
-        return \crc32( \strtoupper( "".$this->_CID.$this->_CID.$this->_PASSWORD.$this->_SID.$this->_USERNAME ) );
+        //return \crc32( \strtoupper( "".$this->_CID.$this->_CID.$this->_PASSWORD.$this->_SID.$this->_USERNAME ) );
+        //echo 'strtoupper data ' . \strtoupper( "".$this->_CID.$this->_CID.$this->_PASSWORD.$this->_SID.$this->_USERNAME ) ;
+        return \sprintf('%u', \crc32(\strtoupper( "".$this->_CID.$this->_CID.$this->_PASSWORD.$this->_SID.$this->_USERNAME )));
     }
     
     protected function GetCrc32StringFromData($data = null)
     {
         if (!is_array($data)) {
-            $crc = \crc32 ( \strtoupper ( $data));
+            $crc = sprintf('%u', \crc32(\strtoupper($data)));
             return $crc;
         } 
         
@@ -417,7 +419,8 @@ final class SpindleConnector
         foreach ($data as $key => $value) {
             $_data .= $value;
         }
-        $crc = \crc32 ( \strtoupper ( $_data));
+        //$crc = \crc32 ( \strtoupper ( $_data));
+        $crc = sprintf('%u', \crc32(\strtoupper($data)));
         
         return $crc;
     }
@@ -570,9 +573,9 @@ final class SpindleConnector
         
         $_encrypted_data = ($encryptedData && !empty($encryptedData)) ? $encryptedData : $this->GetEncryptedCheckSum();
 
-        $_url = $this->_API_BASE_URL . $method . '?' . $_encoded_param_string . '&Checksum=' . \urlencode($_encrypted_data);
+        $_url = $this->_TEST_API_BASE_URL . $method . '?' . $_encoded_param_string . '&Checksum=' . \urlencode($_encrypted_data);
         
-        error_log("CURL_RESPONSE_FROM : $_url");
+        echo "CURL_RESPONSE_FROM : $_url";
         
         $__ch = curl_init($_url);
         \curl_setopt($__ch, \CURLOPT_SSL_VERIFYPEER, false);
@@ -581,6 +584,8 @@ final class SpindleConnector
         \curl_setopt($__ch, \CURLOPT_RETURNTRANSFER, 1);
         \curl_setopt($__ch, \CURLOPT_TIMEOUT, '3');
         $__content = \trim(curl_exec($__ch));
+
+        echo 'Content ' . $__content;
         \curl_close($__ch);
  
         if($returnArray) {
