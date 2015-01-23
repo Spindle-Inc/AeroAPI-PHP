@@ -103,6 +103,9 @@ final class SpindleConnector
      */
     public function Authorize($params = null)
     {
+        $encoded_params = $params;
+        $this->PrepareCardAndCVVInfo($params, $encoded_params);
+        
         return $this->GetCURLResponse('Transaction/Authorize', 
                                       $this->ArrayToParamString($params), 
                                       $this->GetEncryptedCheckSum( $this->ArrayToEncryptableString($params)));
@@ -117,6 +120,9 @@ final class SpindleConnector
      */
     public function Capture($params = null)
     {
+        $encoded_params = $params;
+        $this->PrepareCardAndCVVInfo($params, $encoded_params);
+        
         return $this->GetCURLResponse('Transaction/Capture',
                                            $this->ArrayToParamString($params), 
                                            $this->GetEncryptedCheckSum( $this->ArrayToEncryptableString($params)));
@@ -130,8 +136,11 @@ final class SpindleConnector
      */
     public function Sale($params = null)
     {
+        $encoded_params = $params;
+        $this->PrepareCardAndCVVInfo($params, $encoded_params);
+        
         return $this->GetCURLResponse('Transaction/Sale', 
-                                      $this->ArrayToParamString($params), 
+                                      $this->ArrayToParamString($encoded_params), 
                                       $this->GetEncryptedCheckSum( $this->ArrayToEncryptableString($params)) );
     }
    
@@ -144,6 +153,9 @@ final class SpindleConnector
      */
     public function Refund($params = null)
     {
+        $encoded_params = $params;
+        $this->PrepareCardAndCVVInfo($params, $encoded_params);
+        
         return $this->GetCURLResponse('Transaction/Refund',
                                       $this->ArrayToParamString($params), 
                                       $this->GetEncryptedCheckSum( $this->ArrayToEncryptableString($params)));
@@ -158,6 +170,9 @@ final class SpindleConnector
      */
     public function Void($params = null)
     {
+        $encoded_params = $params;
+        $this->PrepareCardAndCVVInfo($params, $encoded_params);
+        
         return $this->GetCURLResponse('Transaction/Void',
                                       $this->ArrayToParamString($params), 
                                       $this->GetEncryptedCheckSum( $this->ArrayToEncryptableString($params)));
@@ -198,10 +213,13 @@ final class SpindleConnector
      */
     public function RegisterCard($params = null)
     {
-        $params['CardNumber'] = $this->GetEncryptedValue($params['CardNumber']);
-
+        $encoded_params = $params;
+        $encoded_params['CardNumber'] = urlencode($this->GetEncryptedValue($encoded_params['CardNumber']));
+        $encoded_params['CVV'] = urlencode($this->GetEncryptedValue($encoded_params['CVV']));
+        $params['CardNumber'] = $this->GetEncryptedValue($encoded_params['CardNumber']);
+        $params['CVV'] = $this->GetEncryptedValue($encoded_params['CVV']);
         return $this->GetCURLResponse('Vault/RegisterCard',
-                                      $this->ArrayToParamString($params),
+                                      $this->ArrayToParamString($encoded_params),
                                       $this->GetEncryptedCheckSum( $this->ArrayToEncryptableString($params) ));
     }
    
@@ -339,19 +357,13 @@ final class SpindleConnector
      *************************************************************************************
      */
 
-    protected function GetResponseForAction($action = null, $params = null)
+    protected function PrepareCardAndCVVInfo(&$params, &$encoded_params)
     {
-        if(!$action || empty($action)) {
-            return $this->ReportMissingParam('RESPONSE_REQUEST_ACTION');
-        }
-        
-        if(!$params || empty($params)) {
-            return $this->ReportMissingParam('RESPONSE_REQUEST_' . $action . '_PARAMS');
-        }
-
-        return $this->GetCURLResponse($action,
-                                      $this->BuildStringFromArray($params),
-                                      $this->GetEncryptedCheckSum( $this->BuildStringFromArrayForEncryption($params)));
+        $encoded_params = $params;
+        $encoded_params['CardNumber'] = urlencode($this->GetEncryptedValue($encoded_params['CardNumber']));
+        $encoded_params['CVV'] = urlencode($this->GetEncryptedValue($encoded_params['CVV']));
+        $params['CardNumber'] = $this->GetEncryptedValue($params['CardNumber']);
+        $params['CVV'] = $this->GetEncryptedValue($params['CVV']);
     }
     
     private function GetEncryptionIV()
@@ -370,15 +382,15 @@ final class SpindleConnector
         if(!$data) {
             return false;
         }
-        
+        $_data = $data;
         $_key = $this->GetEncryptionKey();
         $_iv  = $this->GetEncryptionIV();
         if(32 !== \strlen($_key)){ $_key = \hash('SHA256', $_key, true);}
         if(16 !== \strlen($_iv)) { $_iv = \hash('MD5', $_iv, true);}
-        $_padding = 16 - (\strlen($data) % 16);
-        $data .= \str_repeat(\chr($_padding), $_padding);
+        $_padding = 16 - (\strlen($_data) % 16);
+        $_data .= \str_repeat(\chr($_padding), $_padding);
 
-        $returnCode = \mcrypt_encrypt(\MCRYPT_RIJNDAEL_128, $_key, $data, \MCRYPT_MODE_CBC, $_iv);
+        $returnCode = \mcrypt_encrypt(\MCRYPT_RIJNDAEL_128, $_key, $_data, \MCRYPT_MODE_CBC, $_iv);
         
         return base64_encode($returnCode);
     }
@@ -400,8 +412,6 @@ final class SpindleConnector
     
     protected function GetCrc32String()
     {
-        //return \crc32( \strtoupper( "".$this->_CID.$this->_CID.$this->_PASSWORD.$this->_SID.$this->_USERNAME ) );
-        //echo 'strtoupper data ' . \strtoupper( "".$this->_CID.$this->_CID.$this->_PASSWORD.$this->_SID.$this->_USERNAME ) ;
         return \sprintf('%u', \crc32(\strtoupper( "".$this->_CID.$this->_CID.$this->_PASSWORD.$this->_SID.$this->_USERNAME )));
     }
     
@@ -419,74 +429,12 @@ final class SpindleConnector
         foreach ($data as $key => $value) {
             $_data .= $value;
         }
-        //$crc = \crc32 ( \strtoupper ( $_data));
+
         $crc = sprintf('%u', \crc32(\strtoupper($data)));
         
         return $crc;
     }
-    
-    /**
-     * BuildEncodedStringFromArray
-     * Takes the incoming array and builds a string with urlencoded values.
-     * array('key'=>'value') becomes '&key='.urlencode(value)
-     * @param mixed $ar The array to reduce to string
-     * @return string
-     */
-    protected function BuildEncodedStringFromArray($ar = null)
-    {
-        if(!$ar || empty($ar)) {
-            $this->ReportMissingParam('ArrayToEncodedString'); // turn on when ready
-        }
-        
-        $_arrayToString = '';
-        
-        foreach($ar as $key => $value) {
-            $_arrayToString .= "&amp;$key=" . \urlencode($value);
-        }
-        
-       return $_arrayToString;
-    }
-    
-    /** 
-     * Builds a string from an array
-     * @param mixed $ar
-     * @return string
-     */
-    protected function BuildStringFromArray($ar = null)
-    {
-        if(!$ar || empty($ar)) {
-            $this->ReportMissingParam('ArrayToEncodedString'); // turn on when ready
-        }
-        
-        $_arrayToString = '';
 
-        foreach($ar as $key => $value) {
-            
-            $_arrayToString .= "&$key=" . \str_replace(' ', '+', $value);
-        }
-        
-        return \ltrim($_arrayToString, '&');
-    }
-    
-    /**
-     * Different from BuildStringFromArray, prepending the CID, no str_replace
-     * @param mixed $ar
-     * @return string
-     */
-    protected function BuildStringFromArrayForEncryption($ar = null)
-    {
-        if(!$ar || empty($ar)) {
-            $this->ReportMissingParam('StringFromArrayForEncoding');
-        }
-        
-        $_arrayToString = $this->GetCID();
-        
-        foreach($ar as $key => $value) {
-            $_arrayToString .= $value;
-        }
-
-        return $_arrayToString;
-    }
     
     /** 
      * Converts an array to encryptable string (duplicate, removing)
@@ -498,13 +446,11 @@ final class SpindleConnector
         if (!$params) {
             return false;
         }
-        
         $_arrayToString = $this->GetCID();
         
         foreach($params as $key => $value) {
             $_arrayToString .= $value;
         }
-
         return $_arrayToString;
     }
     
@@ -525,7 +471,6 @@ final class SpindleConnector
             
             $_arrayToString .= "&$key=" . \str_replace(' ', '+', $value);
         }
-        
         return \ltrim($_arrayToString, '&');
     }
 
@@ -544,7 +489,6 @@ final class SpindleConnector
             $code = '9999';
         }
         
-        error_log("ERROR [$code] " . ucwords($msg) );
     }
     
     /**
@@ -568,24 +512,13 @@ final class SpindleConnector
      */
     private function GetCURLResponse($method = null, $encodedParamString = null, $encryptedData = null, $returnArray = false)
     {
-        
         $_encoded_param_string = ($encodedParamString && !empty($encodedParamString)) ? $encodedParamString : $this->GetParamString();
-        
         $_encrypted_data = ($encryptedData && !empty($encryptedData)) ? $encryptedData : $this->GetEncryptedCheckSum();
-
-        $_url = $this->_TEST_API_BASE_URL . $method . '?' . $_encoded_param_string . '&Checksum=' . \urlencode($_encrypted_data);
-        
-        echo "CURL_RESPONSE_FROM : $_url";
-        
-        $__ch = curl_init($_url);
-        \curl_setopt($__ch, \CURLOPT_SSL_VERIFYPEER, false);
-        \curl_setopt($__ch, \CURLOPT_SSL_VERIFYHOST, 2);
-        \curl_setopt($__ch, \CURLOPT_SSLVERSION,3);
+        $_url = $this->_TEST_API_BASE_URL . $method . '?' . print_r($_encoded_param_string, true) . '&Checksum=' . \urlencode($_encrypted_data);
+        $__ch = \curl_init($_url);
         \curl_setopt($__ch, \CURLOPT_RETURNTRANSFER, 1);
-        \curl_setopt($__ch, \CURLOPT_TIMEOUT, '3');
-        $__content = \trim(curl_exec($__ch));
-
-        echo 'Content ' . $__content;
+        \curl_setopt($__ch, \CURLOPT_BINARYTRANSFER, 1);
+        $__content = \trim(\curl_exec($__ch));
         \curl_close($__ch);
  
         if($returnArray) {

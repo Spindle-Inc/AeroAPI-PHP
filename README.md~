@@ -6,13 +6,6 @@
 
 ----------
 
-## Updates ##
-
-Reworked encryption and CRC32 checksum to properly run a sale transaction under some situations in which it was failing.
-
-
-----------
-
 
 ## General Information ##
 
