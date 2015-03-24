@@ -8,8 +8,6 @@
 
 ## Updates ##
 
-* 3/24/2015 - Updated to v1.02
-
 * 1/23/2015 - Reworked encryption and CRC32 checksum to properly run a sale transaction under some situations in which it was failing.
 
 

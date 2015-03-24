@@ -49,7 +49,7 @@ final class SpindleConnector
     * @param string $pw The Password for your spindle Account
     * @return mixed
     */
-   public function __construct($pk=false, $cid=false, $sid=false, $un=false, $pw=false)
+   public function __construct($pk=false, $cid=false, $sid=false, $un=false, $pw=false, $testing = false)
    {
        (!$pk && $pk != '')? $this->ReportMissingParam('private_key') : $this->_PRIVATE_KEY = $pk;
        (!$cid && $cid != '')? $this->ReportMissingParam('cid') : $this->_CID = $cid;
@@ -57,11 +57,15 @@ final class SpindleConnector
        (!$un && $un != '')? $this->ReportMissingParam('username') : $this->_USERNAME = $un;
        (!$pw && $pw != '')? $this->ReportMissingParam('password') : $this->_PASSWORD = $pw;
 
+       if($testing == true) {
+            $this->SetConnectorToTest();
+       }
+       
    }
 
     /**
      * CreateSession
-     * Generates a session for a logged in user.  Returns the userâ€™s SessionID.
+     * Generates a session for a logged in user.  Returns the user’s SessionID.
      * @return  mixed
      */
     public function CreateSession($encrypted_data = null, $return_json = null)
@@ -96,9 +100,9 @@ final class SpindleConnector
     /**
      * Authorize
      * Submits an authorization request to the server.
-     * Authorizeâ€™s the card for the amount sent.
+     * Authorize’s the card for the amount sent.
      * Will not place the transaction into the Capture batch.
-     * Returns the Authorizeâ€™s TransactionID and Transaction Status.
+     * Returns the Authorize’s TransactionID and Transaction Status.
      * @return mixed
      */
     public function Authorize($params = null)
@@ -114,14 +118,14 @@ final class SpindleConnector
     /**
      * Capture
      * Submits a capture request to the server.
-     * Returns the Captureâ€™s TransactionID and Transaction status.
+     * Returns the Capture’s TransactionID and Transaction status.
      * A capture can only be called after a successful Authorization call.
      * @return mixed
      */
     public function Capture($params = null)
     {
         $encoded_params = $params;
-        $this->PrepareCardAndCVVInfo($params, $encoded_params);
+        //$this->PrepareCardAndCVVInfo($params, $encoded_params);
         
         return $this->GetCURLResponse('Transaction/Capture',
                                            $this->ArrayToParamString($params), 
@@ -131,7 +135,7 @@ final class SpindleConnector
     /**
      * Sale
      * Submits a Sale request to the server.
-     * Returns the Saleâ€™s TransactionID and Transaction status.
+     * Returns the Sale’s TransactionID and Transaction status.
      * @return mixed
      */
     public function Sale($params = null)
@@ -147,14 +151,13 @@ final class SpindleConnector
     /**
      * Refund
      * Submits a refund request to the server.
-     * Returns the Refundâ€™s TransactionID  and Transaction status.
+     * Returns the Refund’s TransactionID  and Transaction status.
      * A refund can be called if the transaction has already been settled.
      * @return mixed
      */
     public function Refund($params = null)
     {
         $encoded_params = $params;
-        $this->PrepareCardAndCVVInfo($params, $encoded_params);
         
         return $this->GetCURLResponse('Transaction/Refund',
                                       $this->ArrayToParamString($params), 
@@ -164,14 +167,13 @@ final class SpindleConnector
     /**
      * Void
      * Submits a void request to the server.
-     * Returns the Voidâ€™s TransactionID and Transaction status.
+     * Returns the Void’s TransactionID and Transaction status.
      * A void can be called if the transaction has not already settled.
      * @return mixed
      */
     public function Void($params = null)
     {
         $encoded_params = $params;
-        $this->PrepareCardAndCVVInfo($params, $encoded_params);
         
         return $this->GetCURLResponse('Transaction/Void',
                                       $this->ArrayToParamString($params), 
@@ -184,7 +186,7 @@ final class SpindleConnector
      * Returns if signature was successful.
      * Used primarily with mobile devices and terminals.
      * On this POST request, the Content-Type must be passed as,
-     * â€œapplication/x-www-form-urlencodedâ€ for the signature to be processed correctly.
+     * “application/x-www-form-urlencoded” for the signature to be processed correctly.
      * @return mixed
      */
     public function ProcessSignature($params = null)
@@ -348,6 +350,16 @@ final class SpindleConnector
     public function GetSessionID()
     {
         return $this->_SESSION_ID;
+    }
+    
+    public function SetConnectorToTest()
+    {
+        $this->_API_BASE_URL = $this->_TEST_API_BASE_URL;
+    }
+    
+    public function GetConnectorApiUrl()
+    {
+        return $this->_API_BASE_URL;
     }
     
     
@@ -514,7 +526,7 @@ final class SpindleConnector
     {
         $_encoded_param_string = ($encodedParamString && !empty($encodedParamString)) ? $encodedParamString : $this->GetParamString();
         $_encrypted_data = ($encryptedData && !empty($encryptedData)) ? $encryptedData : $this->GetEncryptedCheckSum();
-        $_url = $this->_TEST_API_BASE_URL . $method . '?' . print_r($_encoded_param_string, true) . '&Checksum=' . \urlencode($_encrypted_data);
+        $_url = $this->GetConnectorApiUrl() . $method . '?' . print_r($_encoded_param_string, true) . '&Checksum=' . \urlencode($_encrypted_data);
         $__ch = \curl_init($_url);
         \curl_setopt($__ch, \CURLOPT_RETURNTRANSFER, 1);
         \curl_setopt($__ch, \CURLOPT_BINARYTRANSFER, 1);
@@ -524,6 +536,7 @@ final class SpindleConnector
         if($returnArray) {
             return \json_decode($__content, true);
         }
+        
         return $__content;  
     }
 
